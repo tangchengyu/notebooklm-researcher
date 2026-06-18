@@ -1,8 +1,9 @@
 ---
 name: notebooklm-research
 description: >
-  当用户给出一个选题，帮助用户在多平台搜索有价值的信息源；遇到学术、科研或专业技术选题时，
-  额外检索高相关、前沿与奠基性论文，并核验论文身份、版本和可获取性；再汇入 NotebookLM 项目，
+  当用户给出一个选题，帮助用户在多平台搜索有价值的信息源；遇到学术、科研选题时，
+  额外检索高相关、前沿与奠基性论文；遇到软件开发、框架工具等技术性选题时，
+  通过 Context7 查询相关技术的最新官方文档，并核验论文身份、版本和可获取性；再汇入 NotebookLM 项目，
   并生成报告（简报）、信息图表（Infographic）、思维导图（Mind Map）
   和学习路径指导文档，最后将所有产出保存到 Obsidian Vault 的选题文件夹中。
   触发场景：用户说"研究一下XX"、"帮我调研XX选题"、"用 NotebookLM 分析XX"、
@@ -21,6 +22,7 @@ description: >
 - **opencli**（v1.8+）：跨平台搜索 CLI，支持 B站、YouTube、知乎、小红书等站点适配器
 - **notebooklm** CLI（v0.7+）：NotebookLM 完整操作（创建项目、添加来源、生成产物、下载）
 - **gh** CLI：GitHub 仓库搜索（opencli github 适配器仅支持登录操作）
+- **ctx7** CLI：Context7 文档查询，为技术性选题获取最新官方文档（框架 API、库用法、签名示例等）
 - **学术检索入口**：arXiv，以及 Crossref、OpenAlex、Semantic Scholar、PubMed/PMC、CORE、Unpaywall、出版社或作者/机构仓储等合法来源（按学科选择）
 
 ## 工作流
@@ -37,7 +39,11 @@ description: >
    - 小红书（rednote）
    - GitHub
 
-   判断选题是否属于学术、科研或专业技术问题。若属于，默认再启用“学术论文检索”，无需用户额外指定；若只是生活消费、娱乐或一般经验类选题，则不强行加入论文。
+   判断选题类型：
+   - 若属于学术、科研问题 → 默认启用“学术论文检索”
+   - 若属于软件开发、框架工具等技术性问题 → 默认启用“Context7 技术文档查询”
+   - 若同时是学术研究型技术问题（如“深度学习在图像分割中的新进展”）→ 两项都启用
+   - 若只是生活消费、娱乐或一般经验类选题 → 均不启用
 
    询问用户：「我将在这 5 个平台为你搜索相关资料，是否需要调整？」
 
@@ -98,6 +104,35 @@ gh search repos "<选题关键词>" --sort stars --limit 20 --json name,owner,ur
 ```
 
 按 `stargazersCount`（Star 数）排序，选取 Star 数最高的 3-5 个结果。
+
+#### Context7 技术文档查询（软件开发、框架工具等技术性选题默认执行）
+
+当选题属于技术性问题（如编程语言特性、框架/库用法、工具链配置、API 调用等），通过 [Context7](https://context7.com) 查询相关技术的官方文档作为信息源。Context7 维护与官方文档同步的最新 API 签名、用法示例和变更记录，能覆盖训练数据截止后的最新变化。
+
+执行步骤：
+
+1. **分析技术栈**：根据选题关键词判断涉及的核心技术栈（库名、框架名、工具名、编程语言等），确定需要查询的库和具体问题
+2. **对每个目标库执行查询**：
+
+```bash
+# 第一步：解析库 ID
+ctx7 library "<库名>" "<查询上下文>"
+
+# 第二步：获取文档内容
+ctx7 docs <libraryId> "<具体问题>"
+```
+
+3. **记录文档内容**作为信息源，包含：
+   - 库名 / 框架名及版本
+   - API 签名、关键参数说明
+   - 用法示例代码
+   - 版本变更或弃用说明（如有）
+   - 查询时间
+4. **将文档内容以文本形式**添加到 NotebookLM 项目（使用 `--type text`）
+
+#### 信息源去重与整合
+
+对于同时启动学术论文检索和 Context7 技术文档查询的选题，注意区分两类信息源的定位：学术论文提供理论背景和前沿研究进展，Context7 文档提供工程实践中的 API 用法和实现参考。两者互补而非重复。
 
 #### 学术论文检索（学术、科研或专业技术选题默认执行）
 
@@ -236,7 +271,7 @@ notebooklm download report --all --force --name "学习路径" "G:\obsidian_vaul
 ```
 📁 选题文件夹：G:\obsidian_vault\Obsidian Vault\<选题名>\
 📋 NotebookLM 项目：<选题名称>（ID: xxx）
-📊 收集信息源：X 个（B站 X个、YouTube X个、知乎 X个、小红书 X个、GitHub X个；学术论文 X篇：高相关 X篇、前沿 X篇、奠基 X篇）
+📊 收集信息源：X 个（B站 X个、YouTube X个、知乎 X个、小红书 X个、GitHub X个；学术论文 X篇：高相关 X篇、前沿 X篇、奠基 X篇；技术文档 X 项
 📄 已生成文件：
   - report-*.md（简报）
   - infographic-*.png（信息图表）
@@ -257,6 +292,24 @@ notebooklm download report --all --force --name "学习路径" "G:\obsidian_vaul
 ### GitHub gh CLI 未登录
 
 如果 `gh search repos` 报错，提示用户运行 `gh auth login` 登录。如果用户不想登录 GitHub，跳过 GitHub 平台。
+
+### ctx7 命令未找到
+
+如果 `ctx7` 命令不可用，尝试：
+
+```bash
+npx ctx7@latest library "<库名>" "<查询上下文>"
+```
+
+或全局安装：
+
+```bash
+npm install -g ctx7
+```
+
+### Context7 查询无结果
+
+如果 `ctx7 library` 返回的库名与预期不符，尝试不同的关键词组合（如全称、缩写、npm 包名、GitHub 组织名等）。如果仍无结果，跳过 Context7 并在汇总中说明「未找到相关技术文档」。
 
 ### opencli 浏览器问题
 

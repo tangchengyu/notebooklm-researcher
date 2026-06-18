@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-一个用于深度研究的技能，帮助用户在 5 大通用平台搜索有价值的信息源；遇到学术、科研或专业技术选题时，还会检索高相关、前沿与奠基性论文，自动汇入 [NotebookLM](https://notebooklm.google/) 项目，并生成报告、信息图表、思维导图和学习路径指导文档，最后将所有产出保存到本地 Obsidian Vault。
+一个用于深度研究的技能，帮助用户在 5 大通用平台搜索有价值的信息源；遇到学术、科研选题时，还会检索高相关、前沿与奠基性论文；遇到软件开发、框架工具等技术性选题时，通过 Context7 查询最新官方文档，自动汇入 [NotebookLM](https://notebooklm.google/) 项目，并生成报告、信息图表、思维导图和学习路径指导文档，最后将所有产出保存到本地 Obsidian Vault。
 
-A deep-research skill that searches five general-purpose platforms for high-quality sources. For academic, scientific, or technical topics, it also identifies highly relevant, frontier, and foundational papers. It imports the selected sources into NotebookLM, generates a briefing report, infographic, mind map, and learning path guide, then saves everything to your local Obsidian Vault.
+A deep-research skill that searches five general-purpose platforms for high-quality sources. For academic or scientific topics, it also identifies highly relevant, frontier, and foundational papers; for technical topics (frameworks, libraries, dev tools), it queries Context7 for up-to-date official documentation. It imports the selected sources into NotebookLM, generates a briefing report, infographic, mind map, and learning path guide, then saves everything to your local Obsidian Vault.
 
 ---
 
@@ -124,7 +124,7 @@ Collect multi-platform sources about [topic] for NotebookLM
 
 1. ✅ 确认选题和搜索范围（可自定义搜索平台）
 2. 📂 在 Obsidian Vault 中创建选题文件夹
-3. 🔍 在 5 大通用平台搜索高质量信息源（B站、YouTube、知乎、小红书、GitHub）；学术类选题额外检索高相关、前沿与奠基性论文
+3. 🔍 在 5 大通用平台搜索高质量信息源（B站、YouTube、知乎、小红书、GitHub）；学术类选题额外检索高相关、前沿与奠基性论文；技术类选题查询 Context7 官方文档
 4. 📥 创建 NotebookLM 项目并导入信息源
 5. 🤖 生成 4 种产物（简报、信息图表、思维导图、学习路径）
 6. 💾 下载所有产物到 Obsidian 文件夹
@@ -132,7 +132,7 @@ Collect multi-platform sources about [topic] for NotebookLM
 
 ### 学术论文检索 / Academic Paper Research
 
-对于学术、科研或专业技术选题，本技能会把论文作为独立证据通道，并分别覆盖：
+对于学术、科研选题，本技能会把论文作为独立证据通道，并分别覆盖：
 
 - **高相关论文**：直接回答研究问题的综述、元分析和代表性研究
 - **前沿论文**：最近 3 年的工作，并重点检查最近 12 个月的预印本与新发表成果
@@ -140,9 +140,36 @@ Collect multi-platform sources about [topic] for NotebookLM
 
 主要检索和核验来源包括 arXiv、Crossref、OpenAlex、Semantic Scholar、PubMed/PMC、CORE、Unpaywall、出版社页面、作者主页和机构仓储。技能会记录 DOI、arXiv ID、版本、发表状态、同行评审状态、主要贡献和局限，并区分正式论文、预印本及“仅摘要”来源。
 
+
+
+### Context7 技术文档查询 / Technical Documentation via Context7
+
+对于软件开发、框架工具等技术性选题，本技能通过 [Context7](https://context7.com) 查询相关技术的官方文档，获取最新的 API 签名、用法示例和版本变更记录，作为独立信息源汇入 NotebookLM。
+
+用法：
+
+```bash
+# 解析库 ID
+ctx7 library "<库名>" "<查询上下文>"
+
+# 获取文档
+ctx7 docs <libraryId> "<具体问题>"
+```
+
+For software development, framework, and tooling topics, the skill queries official documentation via [Context7](https://context7.com) to obtain the latest API signatures, usage examples, and changelog entries as a separate source stream into NotebookLM.
+
+Usage:
+
+```bash
+# Resolve library ID
+ctx7 library "<library-name>" "<query-context>"
+
+# Fetch docs
+ctx7 docs <libraryId> "<specific-question>"
+```
 本技能不使用 Sci-Hub 或其他绕过付费墙、版权或访问控制的服务。遇到受限论文时，会优先寻找 arXiv、PubMed Central、机构仓储、作者主页或 Unpaywall 提供的合法开放版本；找不到全文时，仅使用合法获得的摘要与元数据，并明确标注。
 
-For academic, scientific, or technical topics, the skill treats papers as a separate evidence stream and covers three categories:
+For academic or scientific topics, the skill treats papers as a separate evidence stream and covers three categories:
 
 - **Highly relevant papers:** reviews, meta-analyses, and representative studies that directly address the question
 - **Frontier papers:** work from the last three years, with an additional check of preprints and publications from the last 12 months
@@ -238,3 +265,4 @@ MIT © [tangchengyu](https://github.com/tangchengyu)
 - [opencli](https://github.com/nicepkg/opencli) — 跨平台搜索 CLI 工具
 - [notebooklm-cli](https://github.com/nicepkg/notebooklm-cli) — NotebookLM 命令行工具
 - [Obsidian](https://obsidian.md/) — 强大的知识库管理工具
+- [Context7](https://context7.com) — 最新技术文档查询服务
