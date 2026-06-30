@@ -31,6 +31,7 @@ A deep-research skill that searches five general-purpose platforms for high-qual
 | [notebooklm](https://github.com/nicepkg/notebooklm-cli) | v0.7+ | NotebookLM 完整操作 | `npm i -g notebooklm-cli` |
 | [GitHub CLI (`gh`)](https://cli.github.com/) | latest | GitHub 仓库搜索（可选） | `winget install GitHub.cli` |
 | [Obsidian](https://obsidian.md/) | latest | 知识库管理 | 官网下载 |
+| SubBatch - B站字幕批量下载工具 | latest | B站视频无字幕或 opencli 无法提取时的字幕生成/导出兜底（可选） | Chrome 扩展商店安装 |
 
 ### 配置 opencli 浏览器
 
@@ -178,6 +179,16 @@ For academic or scientific topics, the skill treats papers as a separate evidenc
 Primary discovery and verification sources include arXiv, Crossref, OpenAlex, Semantic Scholar, PubMed/PMC, CORE, Unpaywall, publisher pages, author pages, and institutional repositories. The workflow records stable identifiers, versions, publication and peer-review status, contribution, and limitations, while distinguishing published papers, preprints, and abstract-only records.
 
 The skill does not use Sci-Hub or other services that bypass paywalls, copyright, or access controls. For restricted papers, it searches for lawful open versions through arXiv, PubMed Central, institutional repositories, author pages, or Unpaywall. If no full text is legally available, it uses only accessible metadata and abstracts and labels that limitation explicitly.
+
+### B站字幕来源 / Bilibili Subtitle Sources
+
+对 B站入选视频，技能优先用 `opencli bilibili video/subtitle/summary` 获取元数据、字幕和官方 AI 总结。不要只把 B站 URL 作为唯一来源；更稳的做法是把字幕、总结和元数据整理成 Markdown，再作为 NotebookLM 文本或文件来源导入。
+
+如果 `opencli bilibili subtitle` 和 `opencli bilibili summary` 都返回空结果，可以用 SubBatch Chrome 扩展作为兜底：打开对应 B站视频或列表，在 SubBatch 侧边栏中生成/获取字幕，导出格式选择 `MD`，将 `.md` 文件保存到选题文件夹的 `sources/bilibili/` 下，再通过 `notebooklm source add "<path>.md" --type file` 导入。若文件导入受限，则读取 Markdown 内容后用 `--type text --title "<视频标题>"` 导入。
+
+For selected Bilibili videos, the skill first tries `opencli bilibili video/subtitle/summary` to collect metadata, subtitles, and the official AI summary. Do not rely on the Bilibili URL alone; the more reliable path is to turn subtitles, summaries, and metadata into Markdown and import that into NotebookLM as a text or file source.
+
+If both `opencli bilibili subtitle` and `opencli bilibili summary` return empty results, use the SubBatch Chrome extension as a fallback. Open the target Bilibili video or list, generate or fetch subtitles from the SubBatch side panel, export `MD`, save the `.md` file under `sources/bilibili/` in the topic folder, then import it with `notebooklm source add "<path>.md" --type file`. If file import is blocked, read the Markdown content and add it with `--type text --title "<video title>"`.
 
 ### 自定义搜索平台
 

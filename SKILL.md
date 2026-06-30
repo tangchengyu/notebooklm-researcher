@@ -21,6 +21,7 @@ description: >
 
 - **opencli**（v1.8+）：跨平台搜索 CLI，支持 B站、YouTube、知乎、小红书等站点适配器
 - **notebooklm** CLI（v0.7+）：NotebookLM 完整操作（创建项目、添加来源、生成产物、下载）
+- **SubBatch - B站字幕批量下载工具**（Chrome 扩展，可选兜底）：当 B站视频没有可被 opencli 直接获取的字幕或官方 AI 总结时，用它批量生成/导出字幕，优先导出 Markdown（MD）后作为 NotebookLM 文本或文件来源
 - **gh** CLI：GitHub 仓库搜索（opencli github 适配器仅支持登录操作）
 - **ctx7** CLI：Context7 文档查询，为技术性选题获取最新官方文档（框架 API、库用法、签名示例等）
 - **学术检索入口**：arXiv，以及 Crossref、OpenAlex、Semantic Scholar、PubMed/PMC、CORE、Unpaywall、出版社或作者/机构仓储等合法来源（按学科选择）
@@ -69,6 +70,35 @@ opencli bilibili search "<选题关键词>" --limit 20 -f json --window backgrou
 
 返回字段：`rank, title, author, score, url`
 按 `score`（综合评分）排序，选取 score 最高的 3-5 个结果。
+
+##### B站视频正文/字幕提取
+
+B站视频不要只把 URL 作为唯一信息源。对入选视频，优先提取可读文本，再导入 NotebookLM：
+
+```bash
+# 元数据：标题、作者、发布时间、简介、播放/收藏等
+opencli bilibili video <BV号> -f md
+
+# 字幕：如果视频已有外挂字幕或智能字幕，通常可直接拿到逐句内容
+opencli bilibili subtitle <BV号> -f md
+
+# 官方 AI 总结：如果 B站已生成总结，可拿到概要和分段大纲
+opencli bilibili summary <BV号> -f md
+```
+
+处理规则：
+
+1. 若 `subtitle` 成功，优先把字幕 Markdown 与视频元数据合并成一个来源。
+2. 若 `subtitle` 失败但 `summary` 成功，把官方 AI 总结、分段大纲与视频元数据合并成一个来源，并标注“未取得完整字幕”。
+3. 若两者都返回 `EMPTY_RESULT` 或无正文内容，使用 **SubBatch - B站字幕批量下载工具** 兜底：
+   - 在 Chrome 中打开 B站视频或视频列表，打开 SubBatch 侧边栏。
+   - 选择需要处理的视频，必要时使用其无字幕转写/AI 字幕能力。
+   - 导出格式选择 `MD`，导出文件名保留标题、作者或日期，便于回溯。
+   - 将导出的 `.md` 文件放入选题文件夹，例如 `G:\obsidian_vault\Obsidian Vault\<选题名>\sources\bilibili\`。
+   - 用 `notebooklm source add "<导出的md文件路径>" --type file -n <notebook_id>` 导入；如果文件导入受限，则读取 Markdown 内容后用 `--type text --title "<视频标题>"` 导入。
+4. 若 SubBatch 也无法生成字幕，只保留标题、简介、互动数据和 URL 作为低信息量来源，并在汇总中说明“未取得字幕/正文，不作为关键证据来源”。
+
+本机可用性提示：SubBatch 是浏览器扩展，不是命令行工具；不要写成 CLI 命令。当前可通过 Chrome 扩展检查是否已安装。若未安装，先让用户安装或改用 opencli 能取得的字幕/总结。
 
 #### YouTube 搜索
 
@@ -183,16 +213,22 @@ notebooklm create "<选题名称>"
 
 #### 添加来源
 
-将所有筛选出的信息源 URL 逐个添加到项目中：
+将所有筛选出的网页信息源 URL 逐个添加到项目中：
 
 ```bash
 notebooklm source add "<URL>" -n <notebook_id>
 ```
 
-如果你收集到的信息源是文本描述（如某个帖子的核心观点），也可以用文本方式添加：
+如果你收集到的信息源是文本描述（如某个帖子的核心观点、B站字幕 Markdown、B站官方 AI 总结、Context7 文档内容），用文本方式添加：
 
 ```bash
 notebooklm source add "<核心内容文本>" --type text --title "<标题>" -n <notebook_id>
+```
+
+如果已经把 B站字幕保存成 Markdown 文件，优先按文件导入：
+
+```bash
+notebooklm source add "G:\obsidian_vault\Obsidian Vault\<选题名>\sources\bilibili\<视频标题>.md" --type file -n <notebook_id>
 ```
 
 等所有来源添加完毕后，用以下命令确认来源处理完成：
