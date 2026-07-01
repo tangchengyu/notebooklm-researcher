@@ -32,6 +32,7 @@ A deep-research skill that searches five general-purpose platforms for high-qual
 | [GitHub CLI (`gh`)](https://cli.github.com/) | latest | GitHub 仓库搜索（可选） | `winget install GitHub.cli` |
 | [Obsidian](https://obsidian.md/) | latest | 知识库管理 | 官网下载 |
 | SubBatch - B站字幕批量下载工具 | latest | B站视频无字幕或 opencli 无法提取时的字幕生成/导出兜底（可选） | Chrome 扩展商店安装 |
+| 社媒助手 | latest | 小红书被登录墙或 opencli 无法稳定提取时，导出笔记、搜索结果和评论数据（可选） | Chrome 扩展商店安装 |
 
 ### 配置 opencli 浏览器
 
@@ -123,6 +124,7 @@ Collect multi-platform sources about [topic] for NotebookLM
 
 技能将按以下步骤执行：
 
+0. 🔐 先检查 NotebookLM CLI 和目标平台登录状态；如果登录过期，停止并提醒登录
 1. ✅ 确认选题和搜索范围（可自定义搜索平台）
 2. 📂 在 Obsidian Vault 中创建选题文件夹
 3. 🔍 在 5 大通用平台搜索高质量信息源（B站、YouTube、知乎、小红书、GitHub）；学术类选题额外检索高相关、前沿与奠基性论文；技术类选题查询 Context7 官方文档
@@ -130,6 +132,31 @@ Collect multi-platform sources about [topic] for NotebookLM
 5. 🤖 生成 4 种产物（简报、信息图表、思维导图、学习路径）
 6. 💾 下载所有产物到 Obsidian 文件夹
 7. 📊 展示最终汇总
+
+### 登录状态预检 / Login Preflight
+
+NotebookLM 网页登录和 `notebooklm` CLI 登录不是完全等价的。即使你能打开 <https://notebooklm.google.com/?pli=1>，CLI 本地 profile 也可能已经过期。因此本技能在开始调研前必须先运行：
+
+```bash
+notebooklm list --json
+```
+
+如果返回 notebook 列表或 `count` 字段，才继续调研。如果返回 `Authentication expired or invalid`、跳转到 `accounts.google.com`、超时或任何认证错误，技能会停止，不会开始搜索或创建项目。此时先运行：
+
+```bash
+notebooklm login
+notebooklm list --json
+```
+
+For NotebookLM, browser login and CLI login are not always the same session. Even if <https://notebooklm.google.com/?pli=1> opens normally, the local CLI profile may still be expired. This skill must run `notebooklm list --json` before research starts. If authentication fails, it stops and asks you to run `notebooklm login`, then verifies again with `notebooklm list --json`.
+
+对小红书等平台，也需要在采集前检查登录状态：
+
+```bash
+opencli rednote whoami -f json --site-session persistent --window background
+```
+
+如果返回 `AUTH_REQUIRED` 或 anonymous，先登录小红书；如果必须使用该平台，技能会等待登录，不会直接跳过或开始调研。
 
 ### 学术论文检索 / Academic Paper Research
 
@@ -189,6 +216,16 @@ The skill does not use Sci-Hub or other services that bypass paywalls, copyright
 For selected Bilibili videos, the skill first tries `opencli bilibili video/subtitle/summary` to collect metadata, subtitles, and the official AI summary. Do not rely on the Bilibili URL alone; the more reliable path is to turn subtitles, summaries, and metadata into Markdown and import that into NotebookLM as a text or file source.
 
 If both `opencli bilibili subtitle` and `opencli bilibili summary` return empty results, use the SubBatch Chrome extension as a fallback. Open the target Bilibili video or list, generate or fetch subtitles from the SubBatch side panel, export `MD`, save the `.md` file under `sources/bilibili/` in the topic folder, then import it with `notebooklm source add "<path>.md" --type file`. If file import is blocked, read the Markdown content and add it with `--type text --title "<video title>"`.
+
+### 小红书来源 / Rednote Sources
+
+对小红书入选笔记，技能优先用 `opencli rednote search/note/comments` 获取搜索结果、笔记正文和评论。如果 opencli 被登录墙拦截或无法稳定提取，可以用社媒助手 Chrome 扩展作为兜底：在 Chrome 中登录小红书并搜索关键词，使用社媒助手导出搜索结果、笔记数据和评论数据。
+
+推荐筛选方式：每个关键词保留 2-3 条点赞数、收藏数和主题相关性最高的笔记；每条笔记保留 2-3 条点赞数最高且有实质信息量的评论。将导出的 Excel/CSV/JSON 整理成 Markdown，保存到 `sources/rednote/`，再通过 `notebooklm source add "<path>.md" --type file` 导入。若文件导入受限，则读取 Markdown 内容后用 `--type text --title "<Rednote title>"` 导入。
+
+For selected Rednote/Xiaohongshu notes, the skill first tries `opencli rednote search/note/comments` to collect search results, note body, and comments. If opencli is blocked by the login wall or cannot extract reliably, use the Social Media Copilot browser extension as a fallback: log into Xiaohongshu in Chrome, search the target keywords, and export search results, note data, and comments.
+
+Recommended filtering: keep 2-3 notes per keyword with the strongest combination of likes, saves, and topic relevance; for each note, keep 2-3 high-like comments that add real substance. Convert the exported Excel/CSV/JSON into Markdown, save it under `sources/rednote/`, then import it with `notebooklm source add "<path>.md" --type file`. If file import is blocked, read the Markdown content and add it with `--type text --title "<Rednote title>"`.
 
 ### 自定义搜索平台
 

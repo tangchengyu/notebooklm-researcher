@@ -22,11 +22,59 @@ description: >
 - **opencli**（v1.8+）：跨平台搜索 CLI，支持 B站、YouTube、知乎、小红书等站点适配器
 - **notebooklm** CLI（v0.7+）：NotebookLM 完整操作（创建项目、添加来源、生成产物、下载）
 - **SubBatch - B站字幕批量下载工具**（Chrome 扩展，可选兜底）：当 B站视频没有可被 opencli 直接获取的字幕或官方 AI 总结时，用它批量生成/导出字幕，优先导出 Markdown（MD）后作为 NotebookLM 文本或文件来源
+- **社媒助手**（Chrome 扩展，可选兜底）：当小红书被登录墙、反爬或 opencli 无法稳定提取正文/评论时，用它采集小红书搜索结果、笔记数据和评论数据，导出后整理成 Markdown 作为 NotebookLM 来源
 - **gh** CLI：GitHub 仓库搜索（opencli github 适配器仅支持登录操作）
 - **ctx7** CLI：Context7 文档查询，为技术性选题获取最新官方文档（框架 API、库用法、签名示例等）
 - **学术检索入口**：arXiv，以及 Crossref、OpenAlex、Semantic Scholar、PubMed/PMC、CORE、Unpaywall、出版社或作者/机构仓储等合法来源（按学科选择）
 
 ## 工作流
+
+### 第零步：登录状态预检（必须先执行）
+
+在确认选题、搜索和创建文件夹之前，先验证所有关键登录状态。不要只依赖 `notebooklm doctor`，因为本地 cookie 可能存在但已经无法实际访问 NotebookLM。
+
+#### NotebookLM 预检
+
+必须先运行：
+
+```bash
+notebooklm list --json
+```
+
+判断规则：
+
+- 若命令成功返回 notebook 列表或 `count` 字段，说明 NotebookLM CLI 当前可用，可以继续。
+- 若返回 `Authentication expired or invalid`、跳转到 `accounts.google.com`、超时或任何认证相关错误，**立即停止调研流程**，不要创建选题文件夹、不要搜索、不要导入来源。
+- 停止时提醒用户：
+
+```text
+NotebookLM CLI 登录已过期。请先打开 https://notebooklm.google.com/?pli=1 确认网页登录，
+然后在本机运行 notebooklm login，完成后我会重新执行 notebooklm list --json 验证。
+```
+
+用户完成登录后，必须重新运行 `notebooklm list --json` 验证成功，再继续后续步骤。
+
+#### 平台登录预检
+
+如果本次搜索范围包含需要登录态的平台，先验证对应平台：
+
+```bash
+# B站：公开视频通常可匿名读取，但字幕/总结/部分接口依赖登录态时先检查
+opencli bilibili whoami -f json
+
+# 知乎：文章和回答通常可公开读取，但若搜索/下载失败，先检查登录态
+opencli zhihu whoami -f json
+
+# 小红书：通常需要登录态；若使用 opencli 或社媒助手采集，必须先确认浏览器已登录
+opencli rednote whoami -f json --site-session persistent --window background
+```
+
+处理规则：
+
+- 若小红书返回 `AUTH_REQUIRED` 或 anonymous，先提醒用户登录小红书，再继续小红书采集；不要直接开始小红书调研。
+- 若用户准备用社媒助手兜底，也要先让用户在 Chrome 中登录小红书，再进行搜索和导出。
+- 若某个平台登录失败但用户允许跳过该平台，可以跳过并在最终汇总里明确说明。
+- 若用户要求必须包含该平台，则登录失败时停止流程，等待用户完成登录。
 
 ### 第一步：确认选题和搜索范围
 
@@ -127,6 +175,60 @@ opencli rednote search "<选题关键词>" --limit 20 -f json --window backgroun
 返回字段：`rank, title, author, likes, published_at, url, author_url`
 按 `likes`（点赞数）排序，选取点赞数最高的 3-5 个结果。
 
+##### 小红书笔记正文/评论提取
+
+小红书不要只把搜索结果 URL 作为唯一信息源。对入选笔记，优先提取正文、互动数据和高赞评论，再导入 NotebookLM：
+
+```bash
+# 搜索候选笔记；若未登录通常会返回 AUTH_REQUIRED
+opencli rednote search "<选题关键词>" --limit 20 -f json --window background
+
+# 读取单条笔记正文和互动数据；需要完整笔记 URL，通常包含 xsec_token
+opencli rednote note "<完整小红书笔记URL>" -f md --window background
+
+# 读取评论；用于补充用户反馈和争议点
+opencli rednote comments "<完整小红书笔记URL>" -f json --window background
+```
+
+处理规则：
+
+1. 若 opencli 能成功搜索和读取笔记，按 `likes`、收藏数（若返回）、发布时间和主题相关性筛选 2-3 条最高质量笔记；每条笔记选取 2-3 条点赞数最高且与主题相关的评论。
+2. 若 opencli 返回 `AUTH_REQUIRED`、被登录墙拦截、搜索为空但浏览器里能看到结果，使用 **社媒助手** 兜底：
+   - 在 Chrome 中登录小红书并搜索调研关键词。
+   - 打开社媒助手，使用“小红书搜索导出 / 笔记数据导出 / 评论数据导出”等功能采集结果。
+   - 优先导出包含这些字段的数据：笔记标题、正文、作者、发布时间、点赞数、收藏数、评论数、分享数、笔记 URL、图片/视频 URL；评论作者、评论正文、点赞数、评论时间、评论 URL（若有）。
+   - 对搜索结果按点赞数、收藏数和主题相关性排序，保留 2-3 条最高质量笔记。
+   - 对每条入选笔记，按评论点赞数和内容信息量保留 2-3 条高赞评论；跳过表情、广告、无实质内容或与主题无关的评论。
+   - 将社媒助手导出的 Excel/CSV/JSON 数据整理成 Markdown，放入 `G:\obsidian_vault\Obsidian Vault\<选题名>\sources\rednote\`。
+   - 用 `notebooklm source add "<整理后的md文件路径>" --type file -n <notebook_id>` 导入；如果文件导入受限，则读取 Markdown 内容后用 `--type text --title "<小红书：关键词/笔记标题>"` 导入。
+3. Markdown 整理模板：
+
+```markdown
+# 小红书信息源：<关键词或笔记标题>
+
+## 筛选规则
+- 搜索关键词：<关键词>
+- 入选标准：点赞/收藏靠前 + 与选题直接相关
+- 采集方式：opencli rednote / 社媒助手
+- 采集时间：<YYYY-MM-DD HH:mm>
+
+## 笔记 1：<标题>
+- 作者：<作者>
+- 发布时间：<时间>
+- 链接：<URL>
+- 互动数据：点赞 <数>；收藏 <数>；评论 <数>；分享 <数>
+
+### 正文摘要
+<保留原意的正文摘录或整理，不要编造缺失字段>
+
+### 高赞评论
+1. <评论内容>（点赞 <数>，作者 <作者>）
+2. <评论内容>（点赞 <数>，作者 <作者>）
+3. <评论内容>（点赞 <数>，作者 <作者>）
+```
+
+4. 若社媒助手也无法导出，不要把小红书作为关键证据来源；在汇总中说明“小红书因登录/导出限制未取得正文和评论”。
+
 #### GitHub 搜索
 
 ```bash
@@ -219,16 +321,17 @@ notebooklm create "<选题名称>"
 notebooklm source add "<URL>" -n <notebook_id>
 ```
 
-如果你收集到的信息源是文本描述（如某个帖子的核心观点、B站字幕 Markdown、B站官方 AI 总结、Context7 文档内容），用文本方式添加：
+如果你收集到的信息源是文本描述（如某个帖子的核心观点、B站字幕 Markdown、B站官方 AI 总结、小红书笔记和高赞评论整理、Context7 文档内容），用文本方式添加：
 
 ```bash
 notebooklm source add "<核心内容文本>" --type text --title "<标题>" -n <notebook_id>
 ```
 
-如果已经把 B站字幕保存成 Markdown 文件，优先按文件导入：
+如果已经把 B站字幕或小红书笔记/评论整理保存成 Markdown 文件，优先按文件导入：
 
 ```bash
 notebooklm source add "G:\obsidian_vault\Obsidian Vault\<选题名>\sources\bilibili\<视频标题>.md" --type file -n <notebook_id>
+notebooklm source add "G:\obsidian_vault\Obsidian Vault\<选题名>\sources\rednote\<关键词或笔记标题>.md" --type file -n <notebook_id>
 ```
 
 等所有来源添加完毕后，用以下命令确认来源处理完成：
