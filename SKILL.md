@@ -268,6 +268,28 @@ ctx7 docs <libraryId> "<具体问题>"
 
 #### 学术论文检索（学术、科研或专业技术选题默认执行）
 
+##### arXiv CLI（必须使用）
+
+涉及 arXiv 时，不要把浏览器搜索、通用网页搜索或直接拼接 PDF URL 当作 arXiv 的主调用方式。必须优先使用本 skill 自带的命令行工具 `scripts/arxiv_cli.py`，它通过 arXiv API 返回结构化元数据，并从 arXiv 下载开放 PDF：
+
+```powershell
+python "C:\Users\DELL\.codex\skills\notebooklm-research\scripts\arxiv_cli.py" search "<英文检索词>" `
+  --max-results 10 `
+  --download 3 `
+  --output "G:\obsidian_vault\Obsidian Vault\<选题名>\sources\arxiv"
+
+python "C:\Users\DELL\.codex\skills\notebooklm-research\scripts\arxiv_cli.py" download <arXiv_ID> `
+  --output "G:\obsidian_vault\Obsidian Vault\<选题名>\sources\arxiv"
+```
+
+CLI 会生成 `arxiv_search.json`、`arxiv_search.md` 和下载的 PDF。先核验题名、作者、版本、日期、DOI 与正式发表状态，再筛选论文。将 PDF 作为本地文件导入 NotebookLM：
+
+```powershell
+notebooklm source add "<arXiv PDF 路径>" --type file -n <notebook_id>
+```
+
+导入后用 `notebooklm source wait -n <notebook_id>` 确认处理完成。若 PDF 上传失败，才退回导入 `arxiv_search.md` 中的合法摘要和元数据，并明确标注“仅摘要”。若 CLI 调用失败，不得静默改用网页抓取；记录错误并说明采用的合法备用来源。
+
 把论文检索作为独立证据通道，不用社交平台热度代替学术质量。先用中英文关键词、常用缩写、同义词和核心作者扩展查询，再按以下三类分别寻找候选论文：
 
 1. **高相关论文**：与研究问题、方法或对象直接匹配，优先系统综述、元分析、权威综述和代表性实证研究。
