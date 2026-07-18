@@ -1,0 +1,23 @@
+{
+  "skill_name": "notebooklm-research",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我调研最近 30 天 NotebookLM 研究工作流的变化和真实用户反馈，并把可用资料整理进 NotebookLM。",
+      "expected_output": "先运行 last30days，读取 source_status；不重复成功的 GitHub/YouTube 通道；补充官网、知乎或 B站缺口；输出结构化 Markdown 资料包。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "研究 Next.js 新版缓存策略，既要社区反馈，也要官方 API 文档和 GitHub 实现线索。",
+      "expected_output": "近期社区/GitHub 由 last30days 负责；官方站与 Context7 独立核验；按 URL/仓库标识去重后导入 NotebookLM。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "收集知乎、B站和小红书上关于轻量露营装备的经验，最近平台覆盖不到的再补采。",
+      "expected_output": "保留 last30days 已成功的小红书/YouTube等结果，不原生覆盖的知乎和B站走补充通道；正文缺失时标注限制。",
+      "files": []
+    }
+  ]
+}

@@ -10,3 +10,15 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local credentials and generated research
+.env
+.env.*
+!.env.example
+outputs/
+work/
