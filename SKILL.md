@@ -5,15 +5,19 @@ description: >
   或生成研究简报/学习路径时使用。该技能以 last30days 作为近期社区与网络信号主通道，
   再按运行状态补采知乎、B站、小红书、官网、Context7 和学术来源；通过稳定标识符与规范化 URL
   去重，输出排版整洁、结构化、可直接导入 NotebookLM 的 Markdown 资料包，并生成报告、
-  信息图、思维导图和学习路径。即使用户没有明确提到 NotebookLM，只要需求包含多源资料收集、
-  近期趋势、深度调研或资料包整理，也应使用本技能。
+  信息图、思维导图和学习路径，最后把资料与四类成果保存到对应的 Obsidian 选题目录。即使用户
+  没有明确提到 NotebookLM，只要需求包含多源资料收集、近期趋势、深度调研或资料包整理，也应
+  使用本技能。
 ---
 
 # NotebookLM 多源深度研究
 
 ## 目标
 
-完成“范围确认 → 近期多源研究 → 缺口补采 → 去重与质量控制 → NotebookLM 导入 → 产物导出”的闭环。
+完成“收集信息 → 规范化并导入 NotebookLM → 生成四类成果 → 保存到 Obsidian 对应选题目录”的闭环。
+
+完整闭环是本技能的完成条件。不能在生成资料包、导入来源或触发 NotebookLM 生成后提前结束；只有
+简报、信息图、思维导图和学习路径都已下载到选题目录，或已逐项记录无法完成的明确原因，任务才算结束。
 
 核心原则：先让 `last30days` 完成其擅长的近 30 天通道，再读取真实 `source_status` 决定补采。不要按固定平台清单重复搜索。
 
@@ -37,6 +41,7 @@ description: >
 - `ctx7` / `npx ctx7@latest`：官方技术文档。
 - `scripts/arxiv_cli.py`：合法的 arXiv 检索、元数据和 PDF 下载。
 - `scripts/normalize_last30days.py`：把 `last30days` agent JSON 与补充清单合并、去重并输出 NotebookLM Markdown。
+- `scripts/resolve_research_root.ps1`：按显式参数、环境变量、本机 Obsidian Vault、Documents 后备顺序解析研究根目录。
 
 ## 工作流
 
@@ -77,16 +82,18 @@ opencli rednote whoami -f json --site-session persistent --window background
 - 是否必须包含特定平台；
 - 是否启用学术、专利或 Context7 通道。
 
-默认优先读取 `NOTEBOOKLM_RESEARCH_ROOT`；未设置时使用当前用户的 Documents 目录：
+使用 bundled resolver 解析研究根目录。优先级依次为：显式参数、当前进程/用户/系统的
+`NOTEBOOKLM_RESEARCH_ROOT`、本机已存在的 `G:\obsidian_vault\Obsidian Vault`、当前用户的
+`Documents\NotebookLM Research`。这样本机默认写入 Obsidian，其他安装仍可移植：
 
 ```powershell
-$researchRoot = if ($env:NOTEBOOKLM_RESEARCH_ROOT) {
-  $env:NOTEBOOKLM_RESEARCH_ROOT
-} else {
-  Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'NotebookLM Research'
-}
+$researchRoot = & "$skillDir\scripts\resolve_research_root.ps1"
 $topicDir = Join-Path $researchRoot '<选题名>'
+$artifactDir = Join-Path $topicDir 'notebooklm'
 ```
+
+在本机，解析结果应为 `G:\obsidian_vault\Obsidian Vault`。开始采集前输出 `$researchRoot` 和
+`$topicDir` 供用户核对；若结果不是预期的 Obsidian Vault，停止并修正路径，不要把研究成果静默写到别处。
 
 选题目录结构：
 
@@ -202,6 +209,8 @@ notebooklm source wait -n <notebook_id>
 
 ### 7. 生成与下载产物
 
+NotebookLM 必须生成并导出历史工作流约定的四种成果：研究简报、信息图、交互式思维导图和学习路径。
+
 ```powershell
 notebooklm generate report --format briefing-doc -n <notebook_id> --wait --timeout 600
 notebooklm generate infographic -n <notebook_id> --wait --timeout 600
@@ -225,6 +234,25 @@ notebooklm download infographic "$topicDir\notebooklm\infographic.png" --artifac
 notebooklm download mind-map "$topicDir\notebooklm\mind-map.json" --artifact <mind_map_artifact_id> -n <notebook_id> --no-clobber
 ```
 
+下载后逐项验证文件存在且非空：
+
+```powershell
+$requiredArtifacts = @(
+  "$artifactDir\briefing.md",
+  "$artifactDir\infographic.png",
+  "$artifactDir\mind-map.json",
+  "$artifactDir\learning-path.md"
+)
+$missingArtifacts = $requiredArtifacts | Where-Object {
+  -not (Test-Path -LiteralPath $_ -PathType Leaf) -or (Get-Item -LiteralPath $_).Length -eq 0
+}
+if ($missingArtifacts) {
+  throw "NotebookLM 产物未完整落盘：$($missingArtifacts -join ', ')"
+}
+```
+
+不要把“NotebookLM 已生成”当作“Obsidian 已保存”。下载和非空校验是独立且必需的最后一步。
+
 ### 8. 最终汇总
 
 报告：
@@ -234,6 +262,7 @@ notebooklm download mind-map "$topicDir\notebooklm\mind-map.json" --artifact <mi
 - 补采平台与补采原因；
 - 合并前数量、去重数量、最终来源数量；
 - 生成文件和 NotebookLM 产物；
+- Obsidian Vault 根目录、选题目录，以及四类成果的逐项落盘状态；
 - 失败、登录限制、仅摘要、缺字幕、低信息量或时效性风险。
 
 ## 质量底线

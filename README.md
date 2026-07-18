@@ -2,7 +2,7 @@
 
 # NotebookLM Researcher
 
-面向 NotebookLM 的多源研究技能。它先用 `last30days` 收集近 30 天的社区与网络信号，再依据每个来源的真实运行状态补采知乎、B站、小红书、官网、Context7 和学术来源，最终生成去重、结构化、可追溯的 Markdown 资料包。
+面向 NotebookLM 与 Obsidian 的多源研究技能。它先用 `last30days` 收集近 30 天的社区与网络信号，再依据每个来源的真实运行状态补采知乎、B站、小红书、官网、Context7 和学术来源，最终生成去重、结构化、可追溯的 Markdown 资料包，并把 NotebookLM 的四类成果保存到对应的 Obsidian 选题目录。
 
 ## 简体中文
 
@@ -25,6 +25,7 @@
 4. 读取 `source_status`，仅补采缺失、降级或内容不完整的来源。
 5. 使用 `normalize_last30days.py` 合并、去重并生成 Markdown 资料包。
 6. 导入 NotebookLM，生成简报、信息图、交互式思维导图和学习路径。
+7. 按 artifact ID 下载四类成果，并验证它们已非空保存到 Obsidian 对应选题目录。
 
 ### 依赖
 
@@ -79,13 +80,19 @@ notebooklm list --json
 
 ### 输出目录
 
-设置可选环境变量：
+研究根目录优先读取环境变量：
 
 ```powershell
-$env:NOTEBOOKLM_RESEARCH_ROOT = 'D:\Research\NotebookLM'
+[Environment]::SetEnvironmentVariable(
+  'NOTEBOOKLM_RESEARCH_ROOT',
+  'G:\obsidian_vault\Obsidian Vault',
+  'User'
+)
 ```
 
-未设置时使用当前用户的 `Documents\NotebookLM Research`。每个选题包含：
+解析顺序为：显式参数 → 环境变量 → 已存在的 `G:\obsidian_vault\Obsidian Vault` →
+`Documents\NotebookLM Research`。因此这台电脑会默认使用 Obsidian Vault；其他电脑可通过同一环境变量配置。
+每个选题包含：
 
 ```text
 <topic>/
@@ -94,6 +101,10 @@ $env:NOTEBOOKLM_RESEARCH_ROOT = 'D:\Research\NotebookLM'
 ├─ sources/academic/
 ├─ manifests/
 └─ notebooklm/
+   ├─ briefing.md
+   ├─ infographic.png
+   ├─ mind-map.json
+   └─ learning-path.md
 ```
 
 最终 Markdown 至少包含研究窗口、摘要、数据源覆盖表、主题簇、逐条来源、日期、互动指标、链接、证据局限和 schema/采集时间。规范化脚本会移除 ANSI、调试日志和常见追踪参数，并保守合并重复记录。
@@ -139,7 +150,8 @@ Required tools are `last30days` and `notebooklm-cli`. `opencli`, Context7, and G
 Research the last 30 days of NotebookLM workflow changes and user feedback, verify official announcements, and prepare a NotebookLM evidence pack.
 ```
 
-The default research root is `Documents/NotebookLM Research`. Override it with `NOTEBOOKLM_RESEARCH_ROOT`.
+The root resolver checks an explicit value, `NOTEBOOKLM_RESEARCH_ROOT`, an existing local
+`G:\obsidian_vault\Obsidian Vault`, and finally `Documents/NotebookLM Research`. Every completed workflow exports and verifies a briefing, infographic, interactive mind map, and learning path under the topic's `notebooklm/` directory.
 
 ### Safety
 
